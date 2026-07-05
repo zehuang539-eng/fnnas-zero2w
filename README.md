@@ -26,18 +26,19 @@
 
 镜像通过本仓库 **[Releases](../../releases)** 分发(单文件约 1.9GB,不放进 git)。
 
-**当前版本 V2.6.5** — 最新版(拓展板双 USB 口 + 全修复)
+**当前版本 V2.5** — 稳定版(拓展板双 USB 口 + 全修复,以此为准)
 - 内核:`6.18.18.c798-trim`(arm64-sunxi,全外设 dtb)
-- 应用:fnOS `1.1.3107`(可继续在网页"系统更新"OTA 升级)
-- 新增:**拓展板双 USB-A 口点亮**(enable phy2/phy3 + `wifi-reload` 服务避开与 WiFi 的开机时序冲突 + 内核更新自动恢复 dtb 的钩子)、**HDMI 开机后热插拔**(走 EDID/HPD);继承 **开机 panic 根治**(libfix)、**SD 擦除风暴根治**(禁 discard 三道锁)、**HDMI EDID 自适应**(含 2.8 寸 480×640 小屏)
-- 已真机验证:**双口 USB(U盘/硬盘)+ WiFi 共存** / HDMI 热插拔 / 开机无 panic / OTA 无擦除风暴 / 存储池首启自建 / web / 全外设
+- 应用:fnOS `1.1.31` —— **烧录后在网页"系统更新"里 OTA 升到最新**(已预埋禁 discard,升级不会触发 SD 擦除风暴)
+- 集齐:**拓展板双 USB-A 口点亮**(enable phy2/phy3 + `wifi-reload` 避开与 WiFi 的开机时序冲突 + 内核更新自动恢复 dtb 的钩子)、**HDMI 开机后热插拔**(走 EDID/HPD)、**SD 擦除风暴根治**(禁 discard 三道锁)、**HDMI EDID 自适应**(含 2.8 寸 480×640 小屏)、全外设
+- 已真机验证:**双口 USB(U盘/硬盘)+ WiFi 共存** / HDMI 热插拔 / 存储池首启自建 / web / 全外设
 
 ```
-fnnas_zero2w_V2.6.5.gz
-SHA256: a9a707887797b9ad9c85810675b04c0234cd71f3d8e627dd298b6fbdd80eeefb
+fnnas_zero2w_V2.5.gz
+SHA256: 3adcbf724d9a1295862e9219c8492bc0b3ca28cded728ab271ce4ad2edfa1c67
 ```
 
-> ⚠️ **勘误**:早期 V2.5 及单口版拓展板 **USB-A 口实测不可用**(飞牛照 Zero3 抄的 dtb 默认关闭了 H616 的 USB2/USB3 host controller,插 U盘/硬盘无反应);当前 V2.6.5 已修复为**双口可用**。若你手上是旧版遇到 USB-A 不识别,升级到此版即可。
+> **版本说明**:**V2.5 为稳定版基准** —— 基于干净的 V2.5 基线重构,含双口 + 所有修复,镜像干净、约 1.9GB。另有 **V2.6.5 实验版**(app 预升到 1.1.3107 + libfix 等,但基于反复用过的系统、镜像较大约 2.3GB)仅作归档;一般用户用 V2.5 即可,烧完首启后自己 OTA 升 app。
+> ⚠️ **勘误**:早期版本拓展板 **USB-A 口曾实测不可用**(飞牛照 Zero3 抄的 dtb 默认关闭了 H616 的 USB2/USB3 host controller,插 U盘/硬盘无反应);现 V2.5 已修复为**双口可用**。
 
 ---
 
@@ -110,7 +111,7 @@ SHA256: a9a707887797b9ad9c85810675b04c0234cd71f3d8e627dd298b6fbdd80eeefb
 
 **阶段七(V2.6.x):app 升级后的连锁问题根治 → V2.6.5 整理版。** 跟随 OTA 把 app 升到 1.1.3107 后,暴露并根治两个致命问题:① 构建期 firmware 解包把 `/lib` 符号链接冲毁 → 开机 panic(恢复符号链接 + 安全提取);② app 1.1.3107 的 `discard=async` 在慢 SD 上触发 `mmc_erase -110` 擦除风暴,把初次建池/onboard/改名/装应用全拖垮(还导致装应用时 docker 镜像没导入、"装了打不开")→ 禁 discard 三道锁根治(**推翻 V2.5"勿禁 discard"旧结论**,因 app 行为变了)。同时把 HDMI 改成 EDID 自适应(接 2.8 寸 480×640 小屏自动原生 1:1、接普通显示器 1080p/720p)。期间深入试过点亮 **Mali GPU**(panfrost 成功出 renderD128,但 PanVK 对 G31 不成熟)和 **VPU 视频硬解**(卡在 cedrus 不认 h616),结论与方法记录在"技术实现"。整合为 **V2.6.5 整理版**。
 
-**阶段八(V2.6.5 双口版):拓展板双 USB 口点亮 + HDMI 热插拔。** 实测拓展板 USB-A 插 U盘/硬盘无反应 —— 真因是飞牛照 Zero3 抄的 dtb 把 H616 的 USB2/USB3 host controller(`usb@5310000`/`5311000` 等)全 `disabled`(Zero3 不引出这些口、注释写着 "USB2 & 3 on FPC connector")。enable 后 USB 口能识别设备,却触发新问题:**一开 phy2/phy3,板载 WiFi(展锐 WCN)就挂**(`chip power on fail`)。挖到底——不是硬件/供电/内核 bug(实读内核源码证 `phy-sun4i-usb` 就是 mainline、`needs_phy2_siddq` quirk 齐全、CCU 里 USB 与 WiFi SDIO 寄存器无重叠),而是**开机时序竞争**:USB host controller 在开机 15-20s bring-up,撞上 WCN 芯片 SDIO 上电扫卡的固定短超时窗口。铁证:手动卸载 WCN、等 USB 稳定后重载,WiFi 立刻起来、双口+WiFi 共存。于是做 **`wifi-reload` 服务**(`After=multi-user.target`,系统起稳后自动重载 WCN,复现手动操作),双口与 WiFi 同时可用。**HDMI 热插拔**则是去掉旧 cmdline 里 `video=...@..e` 的强制标志(它让内核硬钉连接器、跳过 HPD 检测),走 EDID/HPD 后开机不插、之后热插也能点亮。另加内核更新钩子 **`zz-restore-dualport-dtb`**(排在 `10-sync-dtb` 之后)自动恢复双口 dtb,防内核更新覆盖。期间也确认:autosuspend 不阻热插拔(误判后精简)、内核根治此路不通(phy 驱动==mainline 无可改)。
+**阶段八(V2.5 双口稳定版):拓展板双 USB 口点亮 + HDMI 热插拔。** 实测拓展板 USB-A 插 U盘/硬盘无反应 —— 真因是飞牛照 Zero3 抄的 dtb 把 H616 的 USB2/USB3 host controller(`usb@5310000`/`5311000` 等)全 `disabled`(Zero3 不引出这些口、注释写着 "USB2 & 3 on FPC connector")。enable 后 USB 口能识别设备,却触发新问题:**一开 phy2/phy3,板载 WiFi(展锐 WCN)就挂**(`chip power on fail`)。挖到底——不是硬件/供电/内核 bug(实读内核源码证 `phy-sun4i-usb` 就是 mainline、`needs_phy2_siddq` quirk 齐全、CCU 里 USB 与 WiFi SDIO 寄存器无重叠),而是**开机时序竞争**:USB host controller 在开机 15-20s bring-up,撞上 WCN 芯片 SDIO 上电扫卡的固定短超时窗口。铁证:手动卸载 WCN、等 USB 稳定后重载,WiFi 立刻起来、双口+WiFi 共存。于是做 **`wifi-reload` 服务**(`After=multi-user.target`,系统起稳后自动重载 WCN,复现手动操作),双口与 WiFi 同时可用。**HDMI 热插拔**则是去掉旧 cmdline 里 `video=...@..e` 的强制标志(它让内核硬钉连接器、跳过 HPD 检测),走 EDID/HPD 后开机不插、之后热插也能点亮。另加内核更新钩子 **`zz-restore-dualport-dtb`**(排在 `10-sync-dtb` 之后)自动恢复双口 dtb,防内核更新覆盖。期间也确认:autosuspend 不阻热插拔(误判后精简)、内核根治此路不通(phy 驱动==mainline 无可改)。**最终把这套双口改动并入干净的 V2.5 基线重构成稳定版**(避开反复折腾积累的"脏块"、镜像保持约 1.9GB);那个基于用过的系统、较大的版本归档为 **V2.6.5 实验版**。
 
 ---
 
@@ -161,9 +162,9 @@ SHA256: a9a707887797b9ad9c85810675b04c0234cd71f3d8e627dd298b6fbdd80eeefb
 
 **C2(官方 app 行为变化,V2.6.x)app 1.1.3107 的 `discard=async` 触发 SD 擦除风暴 → 初次建池/onboard/改名/装应用全被拖垮。** app 1.1.31 时代 btrfs 不带 discard、影响小;app 1.1.3107 会把 btrfs remount 成 `discard=async`,建池/OTA/装应用等大量写入触发块层 discard → H616 sunxi-mmc `mmc_erase -110` 擦除风暴 → 存储 I/O 半瘫、load 冲高、服务崩、web 挂(实测装应用时撞上此风暴致 docker 镜像没导入、应用装了打不开)。修复:**禁 discard 三道锁**——udev 块层 `discard_max_bytes=0` + fstab `nodiscard` + 首启一次性自毁 service(护建池/onboard 高峰、跑完自删不留常驻);实测重启全程 0 次 mmc_erase。⚠️ **这修正了 V2.5 文档"勿禁 discard"的旧建议** —— app 新版行为变了,现在必须从块层禁掉。
 
-**C3(移植,V2.6.5)拓展板 USB 双口点亮 + 与 WiFi 的开机时序竞争。** 飞牛照 Zero3 抄的 dtb 默认关闭 H616 的 USB2/USB3 host controller(`usb@5310000`/`5310400`/`5311000`/`5311400` 全 `disabled`)→ **拓展板 USB-A 实测不可用**(插 U盘/硬盘无反应,当面插串口零日志);enable phy2/phy3 后 USB 口能枚举设备,但一开就挂板载 WiFi(WCN `sdiohal wait scan card time out` / `chip power on fail`)。**根因非硬件/内核 bug** —— 实读内核源码证飞牛内核就是标准 mainline 6.18.18、`phy-sun4i-usb.c` 与 mainline 逐字节相同、`needs_phy2_siddq` quirk 齐全、ehci/ohci 已 shared reset、CCU 寄存器表里 USB PHY 与 MMC1(WiFi SDIO)完全不重叠 —— 而是**开机时序竞争**:USB host bring-up(15-20s)撞 WCN 的 SDIO 上电扫卡固定超时窗口。铁证:USB 稳定后手动 `rmmod`+`modprobe` WCN 即刻上电成功、`wlan0` 起来、双口+WiFi 共存。**修复**:`wifi-reload.service`(`After=multi-user.target`、起稳后自动重载 WCN 避开竞争)+ `zz-restore-dualport-dtb` 内核 postinst 钩子(防内核更新的 `10-sync-dtb` 覆盖双口 dtb)。热插拔靠系统本身(实测 USB autosuspend 不阻热插拔,曾误判并加禁用、后精简掉)。同一版一并修 HDMI 开机后热插拔(见下 C4)。
+**C3(移植,V2.5 双口版)拓展板 USB 双口点亮 + 与 WiFi 的开机时序竞争。** 飞牛照 Zero3 抄的 dtb 默认关闭 H616 的 USB2/USB3 host controller(`usb@5310000`/`5310400`/`5311000`/`5311400` 全 `disabled`)→ **拓展板 USB-A 实测不可用**(插 U盘/硬盘无反应,当面插串口零日志);enable phy2/phy3 后 USB 口能枚举设备,但一开就挂板载 WiFi(WCN `sdiohal wait scan card time out` / `chip power on fail`)。**根因非硬件/内核 bug** —— 实读内核源码证飞牛内核就是标准 mainline 6.18.18、`phy-sun4i-usb.c` 与 mainline 逐字节相同、`needs_phy2_siddq` quirk 齐全、ehci/ohci 已 shared reset、CCU 寄存器表里 USB PHY 与 MMC1(WiFi SDIO)完全不重叠 —— 而是**开机时序竞争**:USB host bring-up(15-20s)撞 WCN 的 SDIO 上电扫卡固定超时窗口。铁证:USB 稳定后手动 `rmmod`+`modprobe` WCN 即刻上电成功、`wlan0` 起来、双口+WiFi 共存。**修复**:`wifi-reload.service`(`After=multi-user.target`、起稳后自动重载 WCN 避开竞争)+ `zz-restore-dualport-dtb` 内核 postinst 钩子(防内核更新的 `10-sync-dtb` 覆盖双口 dtb)。热插拔靠系统本身(实测 USB autosuspend 不阻热插拔,曾误判并加禁用、后精简掉)。同一版一并修 HDMI 开机后热插拔(见下 C4)。
 
-**C4(移植,V2.6.5)HDMI 开机后热插不亮。** 旧版 cmdline 的 `video=HDMI-A-1:...@..e` 里的 `e`(DRM_FORCE_ON)让内核把连接器硬钉成"已连接"、跳过 HPD 检测(内核源码 `drm_probe_helper.c`:强制连接器被 poll 循环直接 `continue`)→ 开机没插屏、之后热插就黑屏。修复:确保 cmdline 无 `video=` 强制后缀,走 EDID/HPD,开机不插、随后热插都能点亮并自适应分辨率(与小屏 480×640 适配不冲突)。
+**C4(移植,V2.5 双口版)HDMI 开机后热插不亮。** 旧版 cmdline 的 `video=HDMI-A-1:...@..e` 里的 `e`(DRM_FORCE_ON)让内核把连接器硬钉成"已连接"、跳过 HPD 检测(内核源码 `drm_probe_helper.c`:强制连接器被 poll 循环直接 `continue`)→ 开机没插屏、之后热插就黑屏。修复:确保 cmdline 无 `video=` 强制后缀,走 EDID/HPD,开机不插、随后热插都能点亮并自适应分辨率(与小屏 480×640 适配不冲突)。
 
 ---
 
