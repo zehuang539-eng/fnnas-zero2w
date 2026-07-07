@@ -24,7 +24,7 @@
 
 ## 下载
 
-镜像通过本仓库 **[Releases](../../releases)** 分发(单文件约 1.9GB,不放进 git)。
+镜像通过本仓库 **[Releases](../../releases)** 分发(`.img.xz` 压缩,单文件约 1.5GB,不放进 git)。
 
 **当前版本 V2.5** — 稳定版(拓展板双 USB 口 + 全修复,以此为准)
 - 内核:`6.18.18.c798-trim`(arm64-sunxi,全外设 dtb)
@@ -33,11 +33,11 @@
 - 已真机验证:**双口 USB(U盘/硬盘)+ WiFi 共存** / HDMI 热插拔 / 存储池首启自建 / web / 全外设
 
 ```
-fnnas_zero2w_V2.5.gz
-SHA256: 3adcbf724d9a1295862e9219c8492bc0b3ca28cded728ab271ce4ad2edfa1c67
+fnnas_zero2w_V2.5.img.xz
+SHA256: dc3cf6f6c7cd1436038f02fa08ead621db420e5b4c604806e39c19f5391e08cb
 ```
 
-> **版本说明**:**V2.5 为稳定版基准** —— 基于干净的 V2.5 基线重构,含双口 + 所有修复,镜像干净、约 1.9GB。另有 **V2.6.5 实验版**(app 预升到 1.1.3107 + libfix 等,但基于反复用过的系统、镜像较大约 2.3GB)仅作归档;一般用户用 V2.5 即可,烧完首启后自己 OTA 升 app。
+> **版本说明**:**V2.5 为稳定版基准** —— 基于干净的 V2.5 基线重构,含双口 + 所有修复,镜像干净、xz 压缩约 1.5GB(解压后约 6.1GB)。另有 **V2.6.5 实验版**(app 预升到 1.1.3107 + libfix 等,但基于反复用过的系统、镜像较大约 2.3GB)仅作归档;一般用户用 V2.5 即可,烧完首启后自己 OTA 升 app。
 > ⚠️ **勘误**:早期版本拓展板 **USB-A 口曾实测不可用**(飞牛照 Zero3 抄的 dtb 默认关闭了 H616 的 USB2/USB3 host controller,插 U盘/硬盘无反应);现 V2.5 已修复为**双口可用**。
 
 ---
@@ -77,8 +77,8 @@ SHA256: 3adcbf724d9a1295862e9219c8492bc0b3ca28cded728ab271ce4ad2edfa1c67
 
 ## 安装
 
-1. 到 [Releases](../../releases) 下载 `fnnas_zero2w_V2.5.gz`,建议比对上面的 SHA256。
-2. 用 [balenaEtcher](https://etcher.balena.io/) 烧录到 microSD。
+1. 到 [Releases](../../releases) 下载 `fnnas_zero2w_V2.5.img.xz`,建议比对上面的 SHA256。
+2. 用 [balenaEtcher](https://etcher.balena.io/) 或 [Rufus](https://rufus.ie/) 烧录到 microSD(`.img.xz` **无需手动解压**,烧录工具会自动解压)。
    - **卡容量**:镜像解压后约 6.1GB,**最低 8GB 卡**即可烧录启动(4GB 装不下)。存储池空间 = 卡容量 − 系统占用,想要可用的存储空间建议用更大的卡(如 32GB 及以上);卡质量差易触发 SD 擦除超时。
    - 复用旧卡建议先 `diskpart clean` / 格式化,清掉旧分区。
 3. 插卡上电,等待首次开机(会自动建池,约数分钟)。
